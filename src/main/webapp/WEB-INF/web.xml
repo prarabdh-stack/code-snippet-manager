@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="http://xmlns.jcp.org/xml/ns/javaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee
+                             http://xmlns.jcp.org/xml/ns/javaee/web-app_4_0.xsd"
+         version="4.0">
+
+    <!--
+    =====================================================================
+      web.xml — THE DEPLOYMENT DESCRIPTOR
+    =====================================================================
+      This is the FIRST file Tomcat reads when your app starts up.
+      It configures:
+        1. DispatcherServlet  → Spring MVC's front controller
+        2. Character Encoding → Handles UTF-8 (special chars in code)
+        3. Welcome File       → Default page when hitting root URL
+
+      FLOW:
+        Tomcat starts
+          → reads web.xml
+          → creates DispatcherServlet
+          → DispatcherServlet reads spring-mvc-config.xml
+          → Spring container starts up (creates all beans)
+          → App is ready to handle requests
+    =====================================================================
+    -->
+
+    <display-name>Code Snippet Manager</display-name>
+
+    <!-- =================================================================
+         1. CHARACTER ENCODING FILTER
+         Must be declared BEFORE the DispatcherServlet so it runs first.
+
+         WHY: Code snippets can contain special characters (→, ≤, é, etc.)
+         This filter ensures every request and response uses UTF-8,
+         preventing garbled text in the browser or database.
+    ================================================================= -->
+    <filter>
+        <filter-name>encodingFilter</filter-name>
+        <filter-class>
+            org.springframework.web.filter.CharacterEncodingFilter
+        </filter-class>
+        <init-param>
+            <param-name>encoding</param-name>
+            <param-value>UTF-8</param-value>
+        </init-param>
+        <!-- forceEncoding = true → applies UTF-8 to BOTH request AND response -->
+        <init-param>
+            <param-name>forceEncoding</param-name>
+            <param-value>true</param-value>
+        </init-param>
+    </filter>
+
+    <!-- Map the filter to ALL URLs (/*) -->
+    <filter-mapping>
+        <filter-name>encodingFilter</filter-name>
+        <url-pattern>/*</url-pattern>
+    </filter-mapping>
+
+    <!-- =================================================================
+         2. DISPATCHER SERVLET
+         This is Spring MVC's FRONT CONTROLLER — the single entry point
+         for ALL HTTP requests in a Spring MVC application.
+
+         HOW IT WORKS:
+           Every request hits DispatcherServlet first.
+           It consults the handler mappings (from spring-mvc-config.xml)
+           to find which @Controller method should handle the request.
+           After the controller returns a view name, DispatcherServlet
+           uses the ViewResolver to find and render the JSP.
+
+         Think of it as a TRAFFIC COP:
+           Request comes in → DispatcherServlet directs it to the
+           right controller method → gets the view name back →
+           sends the rendered HTML response to the browser.
+    ================================================================= -->
+    <servlet>
+        <servlet-name>dispatcher</servlet-name>
+        <servlet-class>
+            org.springframework.web.servlet.DispatcherServlet
+        </servlet-class>
+
+        <!--
+            Tell DispatcherServlet where to find its Spring configuration.
+            By default it looks for /WEB-INF/{servlet-name}-servlet.xml
+            but we explicitly specify the path for clarity.
+        -->
+        <init-param>
+            <param-name>contextConfigLocation</param-name>
+            <param-value>/WEB-INF/spring-mvc-config.xml</param-value>
+        </init-param>
+
+        <!--
+            load-on-startup = 1 → Start the DispatcherServlet when
+            Tomcat starts (not lazily on first request).
+            Value 1 = highest priority. This means the Spring container
+            starts immediately, catching config errors at startup time
+            rather than on the first user request.
+        -->
+        <load-on-startup>1</load-on-startup>
+    </servlet>
+
+    <!--
+        Map the DispatcherServlet to handle ALL requests (/).
+        The "/" means it handles every URL EXCEPT static files
+        that Tomcat's DefaultServlet handles (like .css, .js, .png).
+
+        Note: We use "/" not "/*"
+          "/"  → handles all URLs, lets Tomcat handle static resources
+          "/*" → intercepts EVERYTHING including JSP rendering (breaks JSPs!)
+    -->
+    <servlet-mapping>
+        <servlet-name>dispatcher</servlet-name>
+        <url-pattern>/</url-pattern>
+    </servlet-mapping>
+
+    <!-- =================================================================
+         3. WELCOME FILE
+         When user hits http://localhost:8080/code-snippet-manager/
+         Tomcat serves index.jsp which will redirect to /snippets
+    ================================================================= -->
+    <welcome-file-list>
+        <welcome-file>index.jsp</welcome-file>
+    </welcome-file-list>
+
+</web-app>

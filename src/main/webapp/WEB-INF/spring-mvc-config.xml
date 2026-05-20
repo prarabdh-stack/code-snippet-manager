@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:mvc="http://www.springframework.org/schema/mvc"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xsi:schemaLocation="
+           http://www.springframework.org/schema/beans
+           http://www.springframework.org/schema/beans/spring-beans.xsd
+           http://www.springframework.org/schema/context
+           http://www.springframework.org/schema/context/spring-context.xsd
+           http://www.springframework.org/schema/mvc
+           http://www.springframework.org/schema/mvc/spring-mvc.xsd
+           http://www.springframework.org/schema/tx
+           http://www.springframework.org/schema/tx/spring-tx.xsd">
+
+    <!--
+    =====================================================================
+      spring-mvc-config.xml — THE SPRING APPLICATION CONTEXT
+    =====================================================================
+      This file configures the Spring container. It tells Spring:
+        1. WHERE to find your beans (@Controller, @Service, @Repository)
+        2. HOW to connect to the database (DataSource)
+        3. HOW Hibernate should be set up (SessionFactory)
+        4. HOW transactions should be managed (TransactionManager)
+        5. HOW to resolve view names to JSP files (ViewResolver)
+
+      DispatcherServlet reads this file at startup and builds
+      the entire Spring application context from it.
+    =====================================================================
+    -->
+
+    <!-- =================================================================
+         1. COMPONENT SCAN
+         Tells Spring to scan the specified package (and all sub-packages)
+         for classes annotated with:
+           @Controller  → SnippetController
+           @Service     → SnippetServiceImpl
+           @Repository  → SnippetDAOImpl
+           @Component   → any other Spring-managed beans
+
+         Without this, Spring would not know your classes exist and
+         @Autowired injection would fail with "No bean found" errors.
+    ================================================================= -->
+    <context:component-scan base-package="com.snippetmanager"/>
+
+    <!-- =================================================================
+         2. ENABLE SPRING MVC ANNOTATIONS
+         Activates:
+           @RequestMapping, @GetMapping, @PostMapping  → URL routing
+           @PathVariable, @RequestParam                → parameter binding
+           @ModelAttribute                             → form binding
+
+         Without this line, your @GetMapping methods would be ignored
+         and every request would return a 404.
+    ================================================================= -->
+    <mvc:annotation-driven/>
+
+    <!-- =================================================================
+         3. STATIC RESOURCES HANDLER
+         Tells Spring MVC: "Don't intercept requests to /resources/**,
+         let Tomcat serve them directly as static files."
+
+         This allows CSS, JavaScript, and image files stored under
+         /webapp/resources/ to be served without going through
+         the DispatcherServlet routing logic.
+    ================================================================= -->
+    <mvc:resources mapping="/resources/**" location="/resources/"/>
+
+    <!-- =================================================================
+         4. VIEW RESOLVER
+         When a controller returns the string "list-snippets",
+         the ViewResolver prepends the prefix and appends the suffix
+         to build the full JSP path:
+
+           prefix + view name + suffix
+           /WEB-INF/views/ + list-snippets + .jsp
+           = /WEB-INF/views/list-snippets.jsp
+
+         WHY /WEB-INF/views/?
+         Files inside /WEB-INF/ are NOT directly accessible by the
+         browser (Tomcat blocks direct URL access). Users can only
+         see JSPs through the controller, which is the secure way.
+    ================================================================= -->
+    <bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+        <property name="prefix" value="/WEB-INF/views/"/>
+        <property name="suffix" value=".jsp"/>
+        <!-- Order matters if multiple ViewResolvers exist; 1 = highest priority -->
+        <property name="order"  value="1"/>
+    </bean>
+
+    <!-- =================================================================
+         5. DATA SOURCE — Apache Commons DBCP2 Connection Pool
+         This bean manages the pool of database connections.
+
+         HOW CONNECTION POOLING WORKS:
+           Without pooling: every request opens a new DB connection
+                            (slow — TCP handshake + auth each time)
+           With pooling:    a pool of connections is kept open and
+                            reused across requests (fast!)
+
+         Spring injects this DataSource into the SessionFactory (below).
+         Hibernate uses it to get connections instead of creating its own.
+
+         ⚠️  CHANGE THESE VALUES to match your MySQL setup:
+               driverClassName → MySQL 8 JDBC driver (don't change)
+               url             → your DB URL
+               username        → your MySQL username
+               password        → your MySQL password
+    ================================================================= -->
+    <bean id="dataSource"
+          class="org.apache.commons.dbcp2.BasicDataSource"
+          destroy-method="close">
+
+        <!-- MySQL JDBC driver -->
+        <property name="driverClassName"
+                  value="com.mysql.cj.jdbc.Driver"/>
+
+        <!-- Database URL — change DB name/host if needed -->
+        <property name="url"
+                  value="jdbc:mysql://localhost:3306/snippet_manager_db?useSSL=false&amp;serverTimezone=UTC&amp;allowPublicKeyRetrieval=true"/>
+
+        <!-- ⚠️ Change to your MySQL credentials -->
+        <property name="username" value="snippet_user"/>
+        <property name="password" value="snippet_pass"/>
+
+        <!-- Pool settings -->
+        <!-- Minimum connections kept alive in the pool -->
+        <property name="initialSize"        value="3"/>
+        <!-- Maximum connections open at once -->
+        <property name="maxTotal"           value="10"/>
+        <!-- Maximum idle connections kept in pool -->
+        <property name="maxIdle"            value="5"/>
+        <!-- Max wait time (ms) for a connection from pool before error -->
+        <property name="maxWaitMillis"      value="10000"/>
+        <!-- Test connections before using them (avoids stale connections) -->
+        <property name="testOnBorrow"       value="true"/>
+        <property name="validationQuery"    value="SELECT 1"/>
+    </bean>
+
+    <!-- =================================================================
+         6. HIBERNATE SESSION FACTORY
+         The SessionFactory is the most important Hibernate object.
+         It is created ONCE at startup (expensive) and reused for
+         the entire application lifetime.
+
+         LocalSessionFactoryBean is Spring's bridge between
+         Spring's dependency injection and Hibernate's SessionFactory.
+
+         It reads:
+           - configLocation  → our hibernate.cfg.xml (dialect, show_sql etc.)
+           - dataSource      → the connection pool we defined above
+           - packagesToScan  → where to find @Entity classes (Snippet.java)
+    ================================================================= -->
+    <bean id="sessionFactory"
+          class="org.springframework.orm.hibernate5.LocalSessionFactoryBean">
+
+        <!-- Point to our hibernate.cfg.xml for dialect, show_sql, etc. -->
+        <property name="configLocation"
+                  value="classpath:hibernate.cfg.xml"/>
+
+        <!-- Inject the connection pool (overrides hibernate.cfg.xml connection props) -->
+        <property name="dataSource" ref="dataSource"/>
+
+        <!-- Spring scans this package for @Entity classes automatically.
+             No need to list each entity in hibernate.cfg.xml <mapping> tags
+             when using packagesToScan (though we kept one there for clarity). -->
+        <property name="packagesToScan"
+                  value="com.snippetmanager.entity"/>
+
+    </bean>
+
+    <!-- =================================================================
+         7. TRANSACTION MANAGER
+         HibernateTransactionManager ties Spring's @Transactional
+         annotation to Hibernate's session management.
+
+         When @Transactional is triggered:
+           → This manager opens a Hibernate Session
+           → Binds it to the current thread
+           → Commits or rolls back based on method outcome
+           → Closes the Session and returns the connection to the pool
+
+         The sessionFactory ref links it to our Hibernate setup above.
+    ================================================================= -->
+    <bean id="transactionManager"
+          class="org.springframework.orm.hibernate5.HibernateTransactionManager">
+        <property name="sessionFactory" ref="sessionFactory"/>
+    </bean>
+
+    <!-- =================================================================
+         8. ENABLE @Transactional ANNOTATION SUPPORT
+         Without this line, @Transactional annotations in your
+         Service classes are completely IGNORED by Spring.
+
+         transaction-manager="transactionManager" → links to bean above.
+         proxy-target-class="false"               → uses JDK dynamic proxy
+                                                    (works because we have
+                                                     interfaces for Service/DAO)
+    ================================================================= -->
+    <tx:annotation-driven transaction-manager="transactionManager"
+                          proxy-target-class="false"/>
+
+</beans>

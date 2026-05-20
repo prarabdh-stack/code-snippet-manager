@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- ============================================================
+         PROJECT IDENTITY
+         groupId   → like a package namespace (usually your domain reversed)
+         artifactId → the project name
+         packaging  → 'war' because we deploy to a servlet container (Tomcat)
+    ============================================================ -->
+    <groupId>com.snippetmanager</groupId>
+    <artifactId>code-snippet-manager</artifactId>
+    <version>1.0</version>
+    <packaging>war</packaging>
+    <name>Code Snippet Manager</name>
+
+    <!-- ============================================================
+         PROPERTIES
+         Centralise version numbers here so you only change them once
+    ============================================================ -->
+    <properties>
+        <java.version>11</java.version>
+        <spring.version>5.3.29</spring.version>
+        <hibernate.version>5.6.15.Final</hibernate.version>
+        <mysql.version>8.0.33</mysql.version>
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+
+        <!-- ========================================================
+             1. SPRING MVC
+             Provides @Controller, @GetMapping, @PostMapping,
+             DispatcherServlet, ViewResolver, ModelAndView, etc.
+        ======================================================== -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-webmvc</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+
+        <!-- ========================================================
+             2. SPRING ORM
+             Bridges Spring and Hibernate — gives us
+             LocalSessionFactoryBean + HibernateTransactionManager
+        ======================================================== -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-orm</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+
+        <!-- ========================================================
+             3. HIBERNATE CORE
+             The ORM engine — maps Java objects ↔ database rows
+             using annotations like @Entity, @Table, @Column
+        ======================================================== -->
+        <dependency>
+            <groupId>org.hibernate</groupId>
+            <artifactId>hibernate-core</artifactId>
+            <version>${hibernate.version}</version>
+        </dependency>
+
+        <!-- ========================================================
+             4. MYSQL CONNECTOR/J
+             JDBC driver so Java (and Hibernate) can talk to MySQL
+        ======================================================== -->
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>${mysql.version}</version>
+        </dependency>
+
+        <!-- ========================================================
+             5. JAVAX SERVLET API
+             Required to compile Spring MVC controllers.
+             'provided' scope → Tomcat already ships this at runtime,
+             so we don't bundle it in our WAR file.
+        ======================================================== -->
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>javax.servlet-api</artifactId>
+            <version>4.0.1</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- ========================================================
+             6. JSP API
+             Needed to compile JSP pages.
+             Also 'provided' — Tomcat ships this too.
+        ======================================================== -->
+        <dependency>
+            <groupId>javax.servlet.jsp</groupId>
+            <artifactId>javax.servlet.jsp-api</artifactId>
+            <version>2.3.3</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- ========================================================
+             7. JSTL (JSP Standard Tag Library)
+             Lets us use <c:forEach>, <c:if>, <c:url> etc. in JSP pages
+             instead of raw Java scriptlets — much cleaner!
+        ======================================================== -->
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>jstl</artifactId>
+            <version>1.2</version>
+        </dependency>
+
+        <!-- ========================================================
+             8. CONNECTION POOL — Apache Commons DBCP2
+             Reuses DB connections instead of opening a new one
+             for every request. Essential for any real application.
+        ======================================================== -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-dbcp2</artifactId>
+            <version>2.9.0</version>
+        </dependency>
+
+        <!-- ========================================================
+             9. LOGGING — SLF4J + Logback
+             Spring and Hibernate use SLF4J internally.
+             Logback is the actual logging implementation.
+             You'll see clean logs in the Tomcat console.
+        ======================================================== -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>1.7.36</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.2.12</version>
+        </dependency>
+
+    </dependencies>
+
+    <!-- ============================================================
+         BUILD CONFIGURATION
+    ============================================================ -->
+    <build>
+        <!-- The final WAR file name (deployed as /code-snippet-manager) -->
+        <finalName>code-snippet-manager</finalName>
+
+        <plugins>
+
+            <!-- Maven Compiler: tells Maven to use Java 11 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
+                </configuration>
+            </plugin>
+
+            <!-- Maven WAR Plugin: packages the project as a .war file for Tomcat -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-war-plugin</artifactId>
+                <version>3.3.2</version>
+                <configuration>
+                    <!-- Allows building the WAR even without a web.xml
+                         (though we WILL have one — this is just a safety flag) -->
+                    <failOnMissingWebXml>false</failOnMissingWebXml>
+                </configuration>
+            </plugin>
+
+        </plugins>
+    </build>
+
+</project>
